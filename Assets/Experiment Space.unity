@@ -238,12 +238,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 507399813}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae21f380e7717ee42a9f0c58b3a2571a, type: 3}
+  m_Script: {fileID: 11500000, guid: 8157ed2807eaf9242bda3a34673f6ad1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mdl: {fileID: 159630, guid: 0011f72ac1dc03d47bf123548e6dd859, type: 3}
+  mdl: {fileID: 100000, guid: 708dbf6af80312e448a0146658e50015, type: 3}
   trialNumber: 0
-  trialTotal: 0
   participantNo: 
   stimObj: {fileID: 0}
   refObj: {fileID: 0}
@@ -515,7 +514,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1045848415}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.36144, z: 0}
+  m_LocalPosition: {x: 0, y: 1.6, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 963194228}
@@ -552,10 +551,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_CameraFloorOffsetObject: {fileID: 1045848415}
-  m_RequestedTrackingMode: 0
+  m_RequestedTrackingMode: 1
   m_TrackingOriginMode: 1
   m_TrackingSpace: 0
-  m_CameraYOffset: 1.36144
+  m_CameraYOffset: 1.6
 --- !u!4 &1725982594
 Transform:
   m_ObjectHideFlags: 0

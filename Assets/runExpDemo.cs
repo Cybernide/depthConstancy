@@ -19,6 +19,10 @@ public class runExpDemo : MonoBehaviour
 
     public GameObject stimObj;
     public GameObject refObj;
+    private LineRenderer stimLnRend;
+    private LineRenderer refLnRend;
+    private GameObject selObj;
+    private Color mater;
 
     // Trial duration calculations
     public System.TimeSpan trialDuration;
@@ -46,15 +50,16 @@ public class runExpDemo : MonoBehaviour
         // Create folder path, create folder in user director
         folderName = Application.persistentDataPath + "/results";
         System.IO.Directory.CreateDirectory(folderName);
-        Debug.Log("Path to my file: {0}\n" +  folderName);
         
 
         // Put reference and stimuli into environment
         InstantiateReference();
         InstantiateStimuli();
+        mater = stimObj.GetComponent<Renderer>().material.color;
+        selObj = refObj;
 
         // Mesh size for calculating absolute measurements
-        meshSz = stimObj.GetComponent<MeshFilter>().mesh.bounds.size.z;
+        meshSz = mdl.GetComponent<MeshFilter>().sharedMesh.bounds.size.z;
 
         // Start trial and get sys time for trial duration record
         trialStartTime = System.DateTime.Now;
@@ -82,17 +87,30 @@ public class runExpDemo : MonoBehaviour
                 isTrial = false;
                 Destroy(stimObj);
             }
-            // Scale stim up
-            else if (Input.GetKeyDown("up"))
+            // Toggle
+            else if (Input.GetKeyDown("right") | Input.GetKeyDown("left"))
             {
-                AdjLen(stimObj, 0.01f);
-                
+                if (selObj == refObj) 
+                {
+                    refObj.GetComponent<LineRenderer>().enabled = false;
+                    stimObj.GetComponent<LineRenderer>().enabled = true;
+                    stimObj.GetComponent<Renderer>().material.color = new Color(0, 204, 102);
+                    refObj.GetComponent<Renderer>().material.color = mater;
+                    selObj = stimObj;
+
+                }
+                else if (selObj == stimObj) 
+                {
+                    stimObj.GetComponent<LineRenderer>().enabled = false;
+                    refObj.GetComponent<LineRenderer>().enabled = true;
+                    refObj.GetComponent<Renderer>().material.color = new Color(0, 204, 102);
+                    stimObj.GetComponent<Renderer>().material.color = mater;
+                    selObj = refObj;
+                    
+                }
+
             }
-            // Scale stim down
-            else if (Input.GetKeyDown("down"))
-            {
-                AdjLen(stimObj, -0.01f);
-            }
+          
         }
         else
        { 
@@ -108,6 +126,7 @@ public class runExpDemo : MonoBehaviour
                 trialNumber++;
                 InstantiateReference();
                 InstantiateStimuli();
+                selObj = refObj;
                 isTrial = true;
             }
         }
@@ -125,11 +144,19 @@ public class runExpDemo : MonoBehaviour
 
         // dummy variables for testing
         float refLen = AbsoluteSize(refObj);
-        float adjLen = AbsoluteSize(stimObj);
+        //float adjLen = AbsoluteSize(stimObj);
+        string sel = null;
+        if (selObj == stimObj)
+        {
+            sel = "eccentric object";
+        }
+        else if (selObj == refObj)
+        {
+            sel = "midline object";
+        }
         float azi = CalcAzimuth(stimObj,refObj);
         float ele = CalcElevation(stimObj, refObj);
-        //Debug.Log(azi);
-        //Debug.Log(ele);
+
         
         // Find trial duration
         trialEndTime = System.DateTime.Now;
@@ -139,13 +166,13 @@ public class runExpDemo : MonoBehaviour
         string trialResponses = 
            (refLen.ToString() + ',' + azi.ToString() + ',' +
            ele.ToString() + ',' + trialDuration.ToString() + ',' + 
-           adjLen.ToString() + Environment.NewLine);
+           sel + Environment.NewLine);
 
         
         //using (StreamWriter resultStream = File.AppendText(
         //    folderName + "/p" + participantNo + "_test.csv"));
         //{
-            Debug.Log(trialResponses);
+            //Debug.Log(trialResponses);
             resultStream = new StreamWriter( folderName + "/p" + participantNo + "_test.csv", append: true);
             resultStream.Write(trialResponses);
             resultStream.Close();
@@ -162,12 +189,13 @@ public class runExpDemo : MonoBehaviour
         /// </summary>
         
         // Range of azimuth and elevation values
-        float stimX = RandVal(500.5f, 499.3f);
-        float stimY = RandVal(0.95f, 1.78f);
+        float stimX = RandVal(500.9f, 499.1f);
+        float stimY = RandVal(1.2f, 2.0f);
 
         stimObj = (GameObject)Instantiate(mdl, 
            new Vector3(stimX, stimY, 500.8f), Quaternion.identity);
-        
+        stimObj.AddComponent<LineRenderer>();
+
     }
 
     void InstantiateReference()
@@ -179,10 +207,11 @@ public class runExpDemo : MonoBehaviour
         /// </summary>
         
         // Reference object is fixed, but changes length
-        refObj = Instantiate(mdl, new Vector3(500f, 1.36144f, 500.8f),
+        refObj = Instantiate(mdl, new Vector3(500f, 1.5f, 500.8f),
                     Quaternion.identity);
         refObj.transform.localScale = new Vector3(1, 1,
             RandVal(0.5f, 1.5f));
+        refObj.AddComponent<LineRenderer>();
 
     }
 
@@ -232,8 +261,8 @@ public class runExpDemo : MonoBehaviour
         // get x,z coordinates of objects
         var vec1 = new Vector2(go1.transform.position.x, go1.transform.position.z);
         var vec2 = new Vector2(go2.transform.position.x, go2.transform.position.z);
-        Debug.Log(vec1);
-        Debug.Log(vec2);
+        //Debug.Log(vec1);
+        //Debug.Log(vec2);
         // get camera offset along the same axes
         var vecCam = new Vector2
             (Camera.main.transform.position.x, Camera.main.transform.position.z);
@@ -251,8 +280,8 @@ public class runExpDemo : MonoBehaviour
         // get x,y coordinates of objects
         var vec1 = new Vector2(go1.transform.position.y, go1.transform.position.z);
         var vec2 = new Vector2(go2.transform.position.y, go2.transform.position.z);
-        Debug.Log(vec1);
-        Debug.Log(vec2);
+        //Debug.Log(vec1);
+        //Debug.Log(vec2);
         // get camera offset along the same axes
         var vecCam = new Vector2
             (Camera.main.transform.position.y, Camera.main.transform.position.z);
@@ -260,5 +289,8 @@ public class runExpDemo : MonoBehaviour
         return Vector2.SignedAngle(vec1 - vecCam, vec2 - vecCam);
 
     }
+
+
+
 }
 

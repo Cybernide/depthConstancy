@@ -5,7 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 
-public class runExpBackFacing : MonoBehaviour
+public class runExp : MonoBehaviour
 {
     /// <summary>
     /// Main class for the Depth Constancy experiment described by Allison and
@@ -18,20 +18,33 @@ public class runExpBackFacing : MonoBehaviour
 
     public GameObject stimObj;
     public GameObject refObj;
+    public float dist = 0.8f;
+
+    // Color and mesh size properties
+    private Color col;
+    private float meshSz;
 
     // Trial duration calculations
-    public System.TimeSpan trialDuration;
-    public System.DateTime trialStartTime;
-    public System.DateTime trialEndTime;
-    
+    private System.TimeSpan trialDuration;
+    private System.DateTime trialStartTime;
+    private System.DateTime trialEndTime;
+
+    private LineRenderer stimLnRend;
+    private LineRenderer refLnRend;
+
+
+
+
+    // Read/write
     protected StreamWriter resultStream;
     protected StreamReader trialReader = null;
     protected string text = " "; // allow first line to be read below
     protected string[] conds = null;
 
-    private float meshSz;
+    
     private bool isTrial;
     private string folderName;
+    private GameObject selObj = null;
 
 
     void Start()
@@ -66,6 +79,12 @@ public class runExpBackFacing : MonoBehaviour
         InstantiateReference(conds[4]);
         InstantiateStimuli(conds[2], conds[3]);
 
+        // Get the starting material for objs to use later for 2AFC selection
+        col = stimObj.GetComponent<Renderer>().material.color;
+
+        // Default selected object for 2 AFC
+        selObj = refObj;
+
         // Mesh size for calculating absolute measurements
         meshSz = stimObj.GetComponent<MeshFilter>().mesh.bounds.size.z;
 
@@ -97,6 +116,7 @@ public class runExpBackFacing : MonoBehaviour
                     OutputTrialResults();
                     isTrial = false;
                     Destroy(stimObj);
+                    Destroy(refObj);
                 }
                 // Scale stim up
                 else if (Input.GetKeyDown("up"))
@@ -112,7 +132,6 @@ public class runExpBackFacing : MonoBehaviour
             }
             if (conds[0] == "2")
             {
-                Debug.Log("2AFC");
 
                 // User confirms their manipulation
                 if (Input.GetKeyDown("space"))
@@ -120,12 +139,25 @@ public class runExpBackFacing : MonoBehaviour
                     OutputTrialResults();
                     isTrial = false;
                     Destroy(stimObj);
+                    Destroy(refObj);
                 }
                 // Toggle between objects
-                //else if (Input.GetKeyDown("right") | Input.GetKeyDown("left"))
-                //{ 
-                    // change selected object
-                //}
+                else if (Input.GetKeyDown("right") | Input.GetKeyDown("left"))
+                {
+                    if (selObj == refObj)
+                    {
+                        stimObj.GetComponent<Renderer>().material.color = new Color(0, 204, 102);
+                        refObj.GetComponent<Renderer>().material.color = col;
+                        selObj = stimObj;
+                    }
+                    else if (selObj == stimObj)
+                    {
+                        refObj.GetComponent<Renderer>().material.color = new Color(0, 204, 102);
+                        stimObj.GetComponent<Renderer>().material.color = col;
+                        selObj = refObj;
+
+                    }
+                }
             }
         }
         else
@@ -144,6 +176,7 @@ public class runExpBackFacing : MonoBehaviour
                 trialNumber++;
                 InstantiateReference(conds[4]);
                 InstantiateStimuli(conds[2], conds[3]);
+                selObj = refObj;
                 isTrial = true;
             }
         }
@@ -160,10 +193,10 @@ public class runExpBackFacing : MonoBehaviour
         /// </summary>
 
         string trialResponses = string.Empty;
-        float refLen = AbsoluteSize(refObj);
-        float adjLen = AbsoluteSize(stimObj);
-        float azi = CalcAzimuth(stimObj, refObj);
-        float ele = CalcElevation(stimObj, refObj);
+        double refLen = Math.Round(AbsoluteSize(refObj),3);
+        double adjLen = Math.Round(AbsoluteSize(stimObj),3);
+        double azi = Math.Round(CalcAzimuth(stimObj, refObj),3);
+        double ele = Math.Round(CalcElevation(stimObj, refObj),3);
 
         // Find trial duration
         trialEndTime = System.DateTime.Now;
@@ -176,14 +209,22 @@ public class runExpBackFacing : MonoBehaviour
                ele.ToString() + ',' + trialDuration.ToString() + ',' +
                adjLen.ToString() + Environment.NewLine);
         }
-        else if (conds[1] == "2")
+        else if (conds[0] == "2")
         {
-            trialResponses = ("2AFC responses");
-            // string sel = selected;
-            //string trialResponses =
-            //(refLen.ToString() + ',' + azi.ToString() + ',' +
-            //ele.ToString() + ',' + trialDuration.ToString() + ',' +
-            //adjLen.ToString() + Environment.NewLine);
+            string sel = "null";
+            if (selObj == stimObj)
+            {
+                sel = "eccentric object";
+            }
+            else if (selObj == refObj)
+            {
+                sel = "midline object";
+            }
+            //string trialResponses = ("2AFC responses");
+            trialResponses =
+            (refLen.ToString() + ',' + azi.ToString() + ',' +
+            ele.ToString() + ',' + trialDuration.ToString() + ',' +
+            adjLen.ToString() + ',' + sel + Environment.NewLine);
         }
 
         try 
@@ -193,11 +234,13 @@ public class runExpBackFacing : MonoBehaviour
             folderName + "/p" + participantNo + "_test.csv", append: true
             );
         resultStream.Write(trialResponses);
+            //Debug.Log(trialResponses);
         resultStream.Close();
         }
         catch(Exception e)
         {
-            Debug.Log("Cannot write to file or generate results");
+            //Debug.Log("Cannot write to file or generate results");
+            Debug.Log(e);
         }
 
     }
@@ -208,11 +251,36 @@ public class runExpBackFacing : MonoBehaviour
         /// Instantiates the stimuli object from model mdl and with random x
         /// and y values for position (left/right, up/down)
         /// </summary>
-        
-        stimObj = (GameObject)Instantiate(mdl,
-           CalcPosGivenAziEle(float.Parse(val1), float.Parse(val2), 0.8f), Quaternion.identity);
+
+        if (conds[1] == "R")
+        {
+            stimObj = (GameObject)Instantiate(mdl,
+            CalcPosGivenAziEle(
+                float.Parse(val1), float.Parse(val2), dist), 
+                Quaternion.identity
+                );
+            stimObj.transform.Rotate(
+                 Camera.main.transform.eulerAngles.x + float.Parse(val2), Camera.main.transform.eulerAngles.y + float.Parse(val1), 0.0f, Space.Self
+                );
+            //stimObj.transform.Rotate(
+                //360.0f - float.Parse(val2),  float.Parse(val1), 0.0f, Space.Self
+                //);
+        }
+        if (conds[1] == "S")
+        {
+            stimObj = (GameObject)Instantiate(mdl,
+            CalcPosGivenAziEle(
+                float.Parse(val1), float.Parse(val2), dist), 
+                Quaternion.identity
+                );
+            stimObj.transform.position = new Vector3(
+                stimObj.transform.position.x, stimObj.transform.position.y,
+                500.0f + dist
+                );
+        }
 
     }
+
 
     void InstantiateReference(string len)
     {
@@ -224,7 +292,7 @@ public class runExpBackFacing : MonoBehaviour
 
         // Reference object is fixed, but changes length
         float val = float.Parse(len);
-        refObj = Instantiate(mdl, new Vector3(500f, 1.6f, 500.8f),
+        refObj = Instantiate(mdl, new Vector3(500f, 1.6f, (500.0f + dist)),
                     Quaternion.identity);
         refObj.transform.localScale = new Vector3(1, 1, val);
 
@@ -253,7 +321,7 @@ public class runExpBackFacing : MonoBehaviour
 
         float meshSz = go.GetComponent<MeshFilter>().mesh.bounds.size.z;
         var trScl = go.transform.localScale.z;
-        // change its local scale
+        // Change local scale
         go.transform.localScale = new Vector3(1, 1, trScl + adj / meshSz);
     }
 
@@ -263,13 +331,13 @@ public class runExpBackFacing : MonoBehaviour
         /// Given two game objects, calculate their azimuth
         /// </summary>
 
-        // get x,z coordinates of objects
+        // Get x,z coordinates of objects
         var vec1 = new Vector2(go1.transform.position.x, go1.transform.position.z);
         var vec2 = new Vector2(go2.transform.position.x, go2.transform.position.z);
-        // get camera offset along the same axes
+        // Get camera offset along the same axes
         var vecCam = new Vector2
             (Camera.main.transform.position.x, Camera.main.transform.position.z);
-        // calc angle, removing offset from camera
+        // Calc angle, removing offset from camera
         return Vector2.SignedAngle(vec1 - vecCam, vec2 - vecCam);
 
     }
@@ -280,12 +348,12 @@ public class runExpBackFacing : MonoBehaviour
         /// Given two game objects, calculate their elevation
         /// </summary>
 
-        // get x,y coordinates of objects
+        // Get x,y coordinates of objects
         var vec1 = new Vector2(go1.transform.position.z, go1.transform.position.y);
         var vec2 = new Vector2(go2.transform.position.z, go2.transform.position.y);
         var vecCam = new Vector2
             (Camera.main.transform.position.x, Camera.main.transform.position.y);
-        // calc angle, removing offset from camera
+        // Calc angle, removing offset from camera
         return Vector2.SignedAngle(vec2 - vecCam, vec1 - vecCam);
 
     }
@@ -297,18 +365,19 @@ public class runExpBackFacing : MonoBehaviour
         /// Given elevation and azimuth, calculate its position in Unity coordinates
         ///</summary>
         
-        // calculate the x,y rotation of object
+        // Calculate the x,y rotation of object
         Quaternion rotX = Quaternion.AngleAxis(
             Camera.main.transform.eulerAngles.x + val2, Vector3.left
             );
         Quaternion rotY = Quaternion.AngleAxis(
             Camera.main.transform.eulerAngles.y + val1, Vector3.up
             );
-        // incorporate x,y rotation and magnitude to find location
+        // Incorporate x,y rotation and magnitude to find location
         Vector3 pos = rotX*rotY * Vector3.forward * dis;
-        Debug.Log(pos + Camera.main.transform.position);
         return pos+Camera.main.transform.position;
     }
+
+    
 
 }
 
